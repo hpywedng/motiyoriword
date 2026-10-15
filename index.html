@@ -10,7 +10,7 @@
             --bg-color: #fdfbf7;
             --card-bg: #ffffff;
             --text-color: #2c3e50;
-            --primary: #d4a373; /* 温かみのあるウッド調/美術館テーマカラー */
+            --primary: #d4a373;
             --primary-light: #faedcd;
             --accent: #ccd5ae;  
             --accent-border: #b7b99c;
@@ -48,7 +48,6 @@
         .hidden { display: none !important; }
         .flex { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         
-        /* プレイヤーバッジ＆アイコン */
         .player-badge {
             display: inline-flex;
             align-items: center;
@@ -85,10 +84,8 @@
             font-weight: bold;
         }
 
-        /* 場のカード一覧（テーブルエリア） */
         #field-container, .archive-field-container { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px; }
         
-        /* 神経衰弱カードスタイル */
         .memory-card { 
             background: #ffffff; 
             border: 3px solid #d4a373; 
@@ -112,7 +109,6 @@
             transform: none;
         }
 
-        /* トランプ裏面（メモ書き・チャチャ入れ対応）風スタイル */
         .card-back-side {
             position: absolute;
             top: 0;
@@ -128,7 +124,6 @@
             justify-content: center;
             align-items: center;
         }
-        /* 白50%オーバーレイを重ねて文字や落書きが見やすくする */
         .card-back-overlay {
             position: absolute;
             top: 0;
@@ -163,8 +158,8 @@
             position: absolute; 
             top: 0; 
             left: 0; 
+            pointer-events: none;
         }
-        .memory-card img { pointer-events: none; }
         .draw-canvas {
             position: absolute;
             top: 0;
@@ -191,11 +186,6 @@
         .clear-canvas-btn { background: #e74c3c; font-size: 11px; padding: 3px 6px; margin: 0; }
         .clear-canvas-btn:hover { background: #c0392b; }
 
-        .vote-area { margin-top: 6px; display: flex; justify-content: space-around; background: #fefae0; padding: 4px; border-radius: 6px; border: 1px solid #ccd5ae; }
-        .vote-btn { background: #fff; border: 1px solid #ccd5ae; padding: 2px 6px; border-radius: 4px; font-size: 12px; cursor: pointer; color: #2c3e50; display: flex; align-items: center; gap: 3px; margin: 0; }
-        .vote-btn:hover { background: #faedcd; }
-
-        /* お絵描きツールバーのデザイン */
         .drawing-toolbar {
             background: #ffffff;
             border: 2px solid #d4a373;
@@ -265,13 +255,13 @@
 
         <div style="background: #faedcd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ccd5ae;">
             <h3>A. 新しく部屋を作る（ホスト）</h3>
-            <label>作りたいルームID: <input type="text" id="create-room-id-input" value="museum101" style="width: 40%;"></label><br>
+            <label>作りたいルームID: <input type="text" id="create-room-id-input" value="moti101" style="width: 40%;"></label><br>
             <button onclick="createRoom()" style="background: #bc6c25; margin-top: 5px;">ルームを作成する</button>
         </div>
 
         <div style="background: #fefae0; padding: 15px; border-radius: 8px; border: 1px solid #ccd5ae;">
             <h3>B. 既存の部屋に参加する（ゲスト）</h3>
-            <label>参加するルームID: <input type="text" id="join-room-id-input" placeholder="ホストのルームID" value="museum101" style="width: 40%;"></label><br>
+            <label>参加するルームID: <input type="text" id="join-room-id-input" placeholder="ホストのルームID" value="moti101" style="width: 40%;"></label><br>
             <button onclick="joinRoom()" style="background: #d4a373; margin-top: 5px;">ルームに参加する</button>
         </div>
     </div>
@@ -330,11 +320,9 @@
         <!-- ワード持ち寄り入力エリア -->
         <div style="background: #fefae0; border: 2px solid #d4a373; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
             <h3 style="color: #bc6c25; margin-top:0;">✍️ あなたの持ち寄りワード入力</h3>
-            <p style="font-size: 13px; color: #555;">神経衰弱のカードにするためのワードを入力してください。グーグル検索用候補画像はシステムが自動選出します！</p>
+            <p style="font-size: 13px; color: #555;">神経衰弱のカードにするためのワードを入力してください。画像はシステムが自動選出します！</p>
             
-            <div id="my-word-inputs-container" style="display:flex; flex-direction:column; gap:8px;">
-                <!-- 動的生成 -->
-            </div>
+            <div id="my-word-inputs-container" style="display:flex; flex-direction:column; gap:8px;"></div>
             <button onclick="submitMyWords()" style="background: #27ae60; color:#fff; margin-top:10px; width:100%;">ワードを決定・送信する</button>
             <p id="word-status-msg" style="font-size: 13px; font-weight:bold; color:#27ae60; margin-top:5px;"></p>
         </div>
@@ -394,16 +382,15 @@
     let isHost = false;
     let myRoomId = "";
     
-    // 全員共有ステート
     let state = {
         players: [],
         playerAvatars: {},
-        playerWords: {}, // { playerName: [word1, word2, ...] }
-        fieldCards: [],  // 神経衰弱カード配列
-        scores: {},      // { playerName: score }
+        playerWords: {},
+        fieldCards: [],
+        scores: {},
         currentTurnIndex: 0,
-        flippedIndices: [], // 現在めくっているカードのインデックス (最大2枚)
-        phase: "lobby", // lobby, play, result
+        flippedIndices: [],
+        phase: "lobby",
         lobbyCanvasData: "",
         archives: []
     };
@@ -412,7 +399,6 @@
     window.myAvatarUrl = "";
     window.myInputWords = ["", ""];
 
-    // ツールバー設定
     let currentDrawingColor = "#000000";
     let currentBrushSize = 5;
     let currentToolMode = "pen";
@@ -462,24 +448,33 @@
     }
 
     function initPeer(customId, callback) {
+        // 既存のpeerがあれば破棄
+        if(peer) {
+            try { peer.destroy(); } catch(e) {}
+        }
+        
         peer = new Peer(customId, { debug: 1 });
+        
         peer.on('open', (id) => {
             myRoomId = id;
-            document.getElementById("sync-status").innerText = "● 接続待機OK";
+            document.getElementById("sync-status").innerText = "● 接続OK (ID: " + id + ")";
             if(callback) callback();
         });
+        
         peer.on('connection', (incomingConn) => {
             if(isHost) {
                 hostConnections.push(incomingConn);
                 setupHostConnection(incomingConn);
             }
         });
+        
         peer.on('error', (err) => {
-            console.error(err);
+            console.error("PeerJS Error:", err);
+            document.getElementById("sync-status").innerText = "● エラー: " + err.type;
             if(err.type === 'unavailable-id') {
-                alert("そのルームIDはすでに使われています。「ルームに参加する」から入室してください。");
+                alert("そのルームIDはすでに使われています。別のIDをお試しください。");
             } else {
-                alert("接続エラー: " + err.type);
+                alert("接続エラーが発生しました (" + err.type + ")。ページを再読み込みして再度お試しください。");
             }
         });
     }
@@ -521,7 +516,7 @@
     function broadcastState() {
         renderCurrentScreen();
         hostConnections.forEach(c => {
-            if(c.open) { c.send({ type: "STATE_SYNC", state: state }); }
+            if(c && c.open) { c.send({ type: "STATE_SYNC", state: state }); }
         });
     }
 
@@ -537,7 +532,8 @@
         const nameInput = document.getElementById("player-name-input").value.trim();
         const avatarInput = document.getElementById("player-avatar-input").value.trim();
         const rInput = document.getElementById("create-room-id-input").value.trim();
-        if(!nameInput) return alert("名前を入力してください");
+        
+        if(!nameInput) return alert("ハンドルネームを入力してください");
         if(!rInput) return alert("ルームIDを入力してください");
 
         window.myCurrentName = nameInput;
@@ -545,7 +541,9 @@
         isHost = true;
         document.getElementById("connection-mode-label").innerText = "ホスト（美術館の館長）";
 
-        const fullRoomId = "motiyori-art-" + rInput;
+        // PeerJSが通りやすいようにシンプルなIDフォーマットに整理
+        const fullRoomId = "moti-art-" + rInput.replace(/[^a-zA-Z0-9_-]/g, "");
+        
         initPeer(fullRoomId, () => {
             if(!state.players.includes(window.myCurrentName)) {
                 state.players.push(window.myCurrentName);
@@ -559,8 +557,9 @@
         const nameInput = document.getElementById("player-name-input").value.trim();
         const avatarInput = document.getElementById("player-avatar-input").value.trim();
         const rInput = document.getElementById("join-room-id-input").value.trim();
-        if(!nameInput) return alert("名前を入力してください");
-        if(!rInput) return alert("ルームIDを入力してください");
+        
+        if(!nameInput) return alert("ハンドルネームを入力してください");
+        if(!rInput) return alert("参加するルームIDを入力してください");
 
         window.myCurrentName = nameInput;
         window.myAvatarUrl = avatarInput;
@@ -570,7 +569,8 @@
         document.getElementById("host-settings-area").classList.add("hidden");
         document.getElementById("guest-waiting-notice").classList.remove("hidden");
 
-        const fullRoomId = "motiyori-art-" + rInput;
+        const fullRoomId = "moti-art-" + rInput.replace(/[^a-zA-Z0-9_-]/g, "");
+        
         initPeer(undefined, () => {
             conn = peer.connect(fullRoomId);
             setupGuestConnection(conn);
@@ -589,6 +589,7 @@
 
     function renderWordInputs() {
         const container = document.getElementById("my-word-inputs-container");
+        if(!container) return;
         container.innerHTML = "";
         const count = parseInt(document.getElementById("words-per-person")?.value || 2);
 
@@ -616,7 +617,8 @@
         const count = parseInt(document.getElementById("words-per-person")?.value || 2);
         let myWords = [];
         for(let i=0; i<count; i++) {
-            const val = (window.myInputWords[i] || "").trim();
+            const inputElem = document.getElementById(`word-input-${i}`);
+            const val = inputElem ? inputElem.value.trim() : (window.myInputWords[i] || "").trim();
             if(!val) return alert(`ワード ${i+1} を入力してください`);
             myWords.push(val);
         }
@@ -641,7 +643,7 @@
             words.forEach(word => {
                 const randomId = Math.floor(Math.random() * 1000) + 1;
                 const imgUrl = `https://picsum.photos/seed/${encodeURIComponent(word + randomId)}/300/300`;
-                const cardPairId = Math.random().toString(36.substring(2));
+                const cardPairId = Math.random().toString(36).substring(2);
                 allCardItems.push({ id: cardPairId, playerName, word, imgUrl, points: 1 });
                 allCardItems.push({ id: cardPairId, playerName, word, imgUrl, points: 1 });
             });
@@ -734,7 +736,8 @@
     function checkGameEnd() {
         const allMatched = state.fieldCards.every(c => c.isMatched);
         if(allMatched) {
-            document.getElementById("end-game-btn").classList.remove("hidden");
+            const endBtn = document.getElementById("end-game-btn");
+            if(endBtn) endBtn.classList.remove("hidden");
         }
     }
 
@@ -762,40 +765,49 @@
     }
 
     function renderCurrentScreen() {
-        document.getElementById("login-screen").classList.add("hidden");
-        document.getElementById("lobby-screen").classList.add("hidden");
-        document.getElementById("game-screen").classList.add("hidden");
+        const loginScr = document.getElementById("login-screen");
+        const lobbyScr = document.getElementById("lobby-screen");
+        const gameScr = document.getElementById("game-screen");
+
+        if(loginScr) loginScr.classList.add("hidden");
+        if(lobbyScr) lobbyScr.classList.add("hidden");
+        if(gameScr) gameScr.classList.add("hidden");
 
         if(state.phase === "lobby") {
-            document.getElementById("lobby-screen").classList.remove("hidden");
-            const displayId = myRoomId.replace("motiyori-art-", "");
-            document.getElementById("display-room-id").innerText = displayId || document.getElementById("join-room-id-input").value;
+            if(lobbyScr) lobbyScr.classList.remove("hidden");
+            const displayId = myRoomId.replace("moti-art-", "");
+            const displayElem = document.getElementById("display-room-id");
+            if(displayElem) displayElem.innerText = displayId || document.getElementById("join-room-id-input").value;
             
             const listContainer = document.getElementById("player-list");
-            listContainer.innerHTML = "";
-            state.players.forEach(p => {
-                const badge = document.createElement("span");
-                badge.className = "player-badge";
-                const avatarHtml = renderAvatarHtml(p);
-                let removeHtml = (isHost && p !== window.myCurrentName) ? `<span class="remove-btn" onclick="removePlayer('${p}')">✕</span>` : '';
-                badge.innerHTML = `${avatarHtml} <span>${p}</span> ${removeHtml}`;
-                listContainer.appendChild(badge);
-            });
+            if(listContainer) {
+                listContainer.innerHTML = "";
+                state.players.forEach(p => {
+                    const badge = document.createElement("span");
+                    badge.className = "player-badge";
+                    const avatarHtml = renderAvatarHtml(p);
+                    let removeHtml = (isHost && p !== window.myCurrentName) ? `<span class="remove-btn" onclick="removePlayer('${p}')">✕</span>` : '';
+                    badge.innerHTML = `${avatarHtml} <span>${p}</span> ${removeHtml}`;
+                    listContainer.appendChild(badge);
+                });
+            }
 
             setupLobbyCanvas();
             renderArchives();
 
         } else if(state.phase === "play" || state.phase === "result") {
-            document.getElementById("game-screen").classList.remove("hidden");
+            if(gameScr) gameScr.classList.remove("hidden");
             
             const currentTurnPlayer = state.players[state.currentTurnIndex] || "-";
-            document.getElementById("current-turn-player").innerText = currentTurnPlayer;
+            const turnElem = document.getElementById("current-turn-player");
+            if(turnElem) turnElem.innerText = currentTurnPlayer;
 
             let scoreHtml = "";
             for(let [p, sc] of Object.entries(state.scores || {})) {
                 scoreHtml += `${renderAvatarHtml(p)} <strong>${p}</strong>: <span style="color:#bc6c25; font-size:18px;">${sc}pt</span> &nbsp;&nbsp;`;
             }
-            document.getElementById("score-display").innerHTML = scoreHtml;
+            const scoreDisplay = document.getElementById("score-display");
+            if(scoreDisplay) scoreDisplay.innerHTML = scoreHtml;
 
             renderFieldCards();
         }
@@ -803,6 +815,7 @@
 
     function renderFieldCards() {
         const container = document.getElementById("field-container");
+        if(!container) return;
         container.innerHTML = "";
 
         state.fieldCards.forEach((card, idx) => {
@@ -950,6 +963,7 @@
     function renderArchives() {
         const section = document.getElementById("archive-section");
         const container = document.getElementById("archive-container");
+        if(!container || !section) return;
         container.innerHTML = "";
 
         if(!state.archives || state.archives.length === 0) {
