@@ -828,7 +828,7 @@
 
     function flipCard(cardIndex) {
         if(state.phase !== "play") return;
-        if(state.isCheckingMatch) return;
+        if(state.isCheckingMatch) return; // 判定中（間違いフェーズ）の操作を完全にブロック
 
         const currentTurnPlayer = state.players[state.currentTurnIndex];
         if(currentTurnPlayer !== window.myCurrentName) {
@@ -844,7 +844,9 @@
         state.flippedIndices.push(cardIndex);
 
         if(state.flippedIndices.length === 2) {
-            state.isCheckingMatch = true;
+            state.isCheckingMatch = true; // 2枚揃ったので即座にロック開始
+            syncAndPush(); // 即座にボタンを非表示にするため同期
+
             const idx1 = state.flippedIndices[0];
             const idx2 = state.flippedIndices[1];
             const c1 = state.fieldCards[idx1];
@@ -875,9 +877,9 @@
                     syncAndPush();
                 }, 2400);
             }
+        } else {
+            syncAndPush();
         }
-
-        syncAndPush();
     }
 
     function checkGameEnd() {
@@ -1019,7 +1021,12 @@
                         <canvas class="draw-canvas" id="canvas-card-${idx}" style="pointer-events:auto; z-index:7;"></canvas>
                     </div>
                 `;
-                actionBtnHtml = `<button onclick="flipCard(${idx})" style="background:#bc6c25; color:#fff; width:100%; margin-top:8px; padding:8px; font-weight:bold; z-index:15; position:relative;">📖 このカードをめくる</button>`;
+                // ★ 判定中（state.isCheckingMatch === true）のときは、めくるボタンを一切表示しない（厳格なロック）
+                if(!state.isCheckingMatch) {
+                    actionBtnHtml = `<button onclick="flipCard(${idx})" style="background:#bc6c25; color:#fff; width:100%; margin-top:8px; padding:8px; font-weight:bold; z-index:15; position:relative;">📖 このカードをめくる</button>`;
+                } else {
+                    actionBtnHtml = `<div style="font-size:13px; font-weight:bold; color:#e74c3c; margin-top:8px;">⏳ 判定中...</div>`;
+                }
             } else {
                 actionBtnHtml = `<div style="font-size:13px; font-weight:bold; color:#27ae60; margin-top:8px;">✨ 公開中</div>`;
             }
