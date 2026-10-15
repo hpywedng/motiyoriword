@@ -275,10 +275,10 @@
             <div class="drawing-toolbar" id="lobby-toolbar">
                 <span class="tool-label">🎨 ペン:</span>
                 <div class="tool-group">
-                    <button class="color-btn active" style="background: #000000;" data-color="#000000" title="黒"></button>
-                    <button class="color-btn" style="background: #e74c3c;" data-color="#e74c3c" title="赤"></button>
-                    <button class="color-btn" style="background: #27ae60;" data-color="#27ae60" title="緑"></button>
-                    <button class="color-btn" style="background: #2980b9;" data-color="#2980b9" title="青"></button>
+                    <button class="color-btn active" style="background: #000000;" data-color="#000000" onclick="setLobbyPresetColor('#000000')"></button>
+                    <button class="color-btn" style="background: #e74c3c;" data-color="#e74c3c" onclick="setLobbyPresetColor('#e74c3c')"></button>
+                    <button class="color-btn" style="background: #27ae60;" data-color="#27ae60" onclick="setLobbyPresetColor('#27ae60')"></button>
+                    <button class="color-btn" style="background: #2980b9;" data-color="#2980b9" onclick="setLobbyPresetColor('#2980b9')"></button>
                     <button class="color-picker-btn" id="lobby-color-picker-trigger" title="カラーパレット"></button>
                     <input type="color" id="lobby-native-color-picker" value="#000000" style="display:none;" onchange="setLobbyCustomColor(this.value)">
                 </div>
@@ -358,10 +358,10 @@
         <div class="drawing-toolbar" id="global-drawing-toolbar">
             <span class="tool-label">🎨 一括ペン設定:</span>
             <div class="tool-group">
-                <button class="color-btn active" style="background: #000000;" data-color="#000000" onclick="setGlobalTool('color', '#000000')"></button>
-                <button class="color-btn" style="background: #e74c3c;" data-color="#e74c3c" onclick="setGlobalTool('color', '#e74c3c')"></button>
-                <button class="color-btn" style="background: #27ae60;" data-color="#27ae60" onclick="setGlobalTool('color', '#27ae60')"></button>
-                <button class="color-btn" style="background: #2980b9;" data-color="#2980b9" onclick="setGlobalTool('color', '#2980b9')"></button>
+                <button class="color-btn active" style="background: #000000;" data-color="#000000" onclick="setGlobalPresetColor('#000000')"></button>
+                <button class="color-btn" style="background: #e74c3c;" data-color="#e74c3c" onclick="setGlobalPresetColor('#e74c3c')"></button>
+                <button class="color-btn" style="background: #27ae60;" data-color="#27ae60" onclick="setGlobalPresetColor('#27ae60')"></button>
+                <button class="color-btn" style="background: #2980b9;" data-color="#2980b9" onclick="setGlobalPresetColor('#2980b9')"></button>
                 <button class="color-picker-btn" id="global-color-picker-trigger" title="カラーパレット"></button>
                 <input type="color" id="global-native-color-picker" value="#000000" style="display:none;" onchange="setGlobalCustomColor(this.value)">
             </div>
@@ -401,14 +401,14 @@
     let state = {
         players: [],
         playerAvatars: {},
-        playerItems: {}, // { playerName: [{word, imgUrl1, imgUrl2}, ...] }
+        playerItems: {},
         fieldCards: [],
         scores: {},
         currentTurnIndex: 0,
         flippedIndices: [],
         isCheckingMatch: false,
         wordsPerPerson: 2,
-        phase: "lobby", // lobby, play, result
+        phase: "lobby",
         lobbyCanvasData: "",
         archives: []
     };
@@ -483,6 +483,15 @@
         });
     }
 
+    function setLobbyPresetColor(hex) {
+        lobbyColor = hex;
+        document.querySelectorAll('#lobby-toolbar .color-btn').forEach(b => {
+            if(b.getAttribute('data-color') === hex) b.classList.add('active');
+            else b.classList.remove('active');
+        });
+        setLobbyMode('pen');
+    }
+
     function setLobbyCustomColor(hex) {
         lobbyColor = hex;
         document.querySelectorAll('#lobby-toolbar .color-btn').forEach(b => b.classList.remove('active'));
@@ -504,13 +513,7 @@
     }
 
     function setGlobalTool(type, val) {
-        if(type === 'color') {
-            globalToolColor = val;
-            document.querySelectorAll('#global-drawing-toolbar .color-btn').forEach(b => {
-                if(b.getAttribute('data-color') === val) b.classList.add('active');
-                else b.classList.remove('active');
-            });
-        } else if(type === 'mode') {
+        if(type === 'mode') {
             globalToolMode = val;
             if(val === 'pen') {
                 document.getElementById('global-mode-pen').classList.add('active');
@@ -538,6 +541,15 @@
                 btn.style.color = "#2c3e50";
             }
         }
+    }
+
+    function setGlobalPresetColor(hex) {
+        globalToolColor = hex;
+        document.querySelectorAll('#global-drawing-toolbar .color-btn').forEach(b => {
+            if(b.getAttribute('data-color') === hex) b.classList.add('active');
+            else b.classList.remove('active');
+        });
+        setGlobalTool('mode', 'pen');
     }
 
     function setGlobalCustomColor(hex) {
@@ -768,15 +780,13 @@
             const items = state.playerItems[playerName];
             items.forEach(item => {
                 const cardPairId = Math.random().toString(36).substring(2);
-                // 1つのワードにつき2つの異なる画像URLをそれぞれ割り当てる
-                allCardItems.push({ id: cardPairId, playerName, word: item.word, imgUrl: item.imgUrl1, points: 1 });
-                allCardItems.push({ id: cardPairId, playerName, word: item.word, imgUrl: item.imgUrl2, points: 1 });
+                allCardItems.push({ id: cardPairId, playerName, word: item.word, imgUrl: item.imgUrl1, points: 1, canvasDataBack: "", canvasDataFront: "" });
+                allCardItems.push({ id: cardPairId, playerName, word: item.word, imgUrl: item.imgUrl2, points: 1, canvasDataBack: "", canvasDataFront: "" });
             });
         });
 
         allCardItems.sort(() => Math.random() - 0.5);
 
-        // 画像の事前読み込み（プリロード）
         const preloadPromises = allCardItems.map(item => {
             return new Promise((resolve) => {
                 if(isYoutubeUrl(item.imgUrl)) {
@@ -801,7 +811,8 @@
             isFlipped: false,
             isMatched: false,
             matchOwner: null,
-            canvasData: ""
+            canvasDataBack: "",
+            canvasDataFront: ""
         }));
 
         state.scores = {};
@@ -971,7 +982,6 @@
             const scoreDisplay = document.getElementById("score-display");
             if(scoreDisplay) scoreDisplay.innerHTML = scoreHtml;
 
-            // リザルト画面時のロビーに戻るボタン制御
             const lobbyBackBtn = document.getElementById("back-to-lobby-btn");
             if(lobbyBackBtn) {
                 if(state.phase === "result" && isHost) {
@@ -999,13 +1009,14 @@
 
             let backSideHtml = "";
             let actionBtnHtml = "";
+            let activeSide = 'front';
 
-            // めくられておらず、かつマッチもしていない場合は裏面を表示
             if(!card.isFlipped && !card.isMatched) {
+                activeSide = 'back';
                 backSideHtml = `
                     <div class="card-back-side">
                         <div class="card-back-overlay"></div>
-                        <canvas class="draw-canvas" id="canvas-back-${idx}" style="pointer-events:auto; z-index:7;"></canvas>
+                        <canvas class="draw-canvas" id="canvas-card-${idx}" style="pointer-events:auto; z-index:7;"></canvas>
                     </div>
                 `;
                 actionBtnHtml = `<button onclick="flipCard(${idx})" style="background:#bc6c25; color:#fff; width:100%; margin-top:8px; padding:8px; font-weight:bold; z-index:15; position:relative;">📖 このカードをめくる</button>`;
@@ -1018,7 +1029,6 @@
                 matchBadgeHtml = `<div class="matched-badge">✨ 揃った！ (${card.matchOwner})</div>`;
             }
 
-            // ワードと提示者は結果発表（result）になるまで完全に隠す
             let displayWordOrHidden = (isGameEnded) ? card.word : "？？？";
             let displayOwnerOrHidden = (isGameEnded) ? `提示: ${card.playerName}` : "提示: 秘密";
 
@@ -1036,8 +1046,7 @@
                 
                 <div class="canvas-container">
                     ${mediaTag}
-                    <!-- 表面の落書きキャンバス -->
-                    <canvas class="draw-canvas" id="canvas-front-${idx}" style="${ytId ? 'pointer-events:none; display:none;' : ''}"></canvas>
+                    ${(!card.isFlipped && !card.isMatched) ? '' : `<canvas class="draw-canvas" id="canvas-card-${idx}" style="${ytId ? 'pointer-events:none; display:none;' : ''}"></canvas>`}
                 </div>
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
@@ -1051,13 +1060,7 @@
             `;
             container.appendChild(cardDiv);
 
-            // 裏面用と表面用のキャンバス描画をそれぞれセットアップ
-            if(!card.isFlipped && !card.isMatched) {
-                setupCardCanvas(`canvas-back-${idx}`, idx, card, 'back');
-            }
-            if(!ytId) {
-                setupCardCanvas(`canvas-front-${idx}`, idx, card, 'front');
-            }
+            setupCardCanvas(`canvas-card-${idx}`, idx, activeSide);
         });
     }
 
@@ -1106,17 +1109,20 @@
         setupLobbyCanvas();
     }
 
-    function setupCardCanvas(canvasId, cardIndex, cardData, side) {
+    function setupCardCanvas(canvasId, cardIndex, side) {
         const canvas = document.getElementById(canvasId);
         if(!canvas) return;
         const ctx = canvas.getContext('2d');
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
 
-        if(cardData.canvasData) {
+        const card = state.fieldCards[cardIndex];
+        const savedData = (side === 'back') ? card.canvasDataBack : card.canvasDataFront;
+
+        if(savedData) {
             const img = new Image();
             img.onload = () => { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0); };
-            img.src = cardData.canvasData;
+            img.src = savedData;
         }
 
         let isDrawing = false;
@@ -1150,7 +1156,12 @@
         const stop = (e) => {
             if(!isDrawing) return;
             isDrawing = false;
-            state.fieldCards[cardIndex].canvasData = canvas.toDataURL();
+            const dataUrl = canvas.toDataURL();
+            if(side === 'back') {
+                state.fieldCards[cardIndex].canvasDataBack = dataUrl;
+            } else {
+                state.fieldCards[cardIndex].canvasDataFront = dataUrl;
+            }
             syncAndPush();
             if(e) e.stopPropagation();
         };
@@ -1160,7 +1171,8 @@
 
     function clearCardCanvas(cardIndex) {
         if(state.fieldCards[cardIndex]) {
-            state.fieldCards[cardIndex].canvasData = "";
+            state.fieldCards[cardIndex].canvasDataBack = "";
+            state.fieldCards[cardIndex].canvasDataFront = "";
             syncAndPush();
             renderFieldCards();
         }
