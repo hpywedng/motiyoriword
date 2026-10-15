@@ -191,6 +191,17 @@
         .color-btn { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #ccc; cursor: pointer; padding: 0; margin: 0; transition: transform 0.1s; }
         .color-btn.active { transform: scale(1.2); border-color: #3a2e2b; box-shadow: 0 0 4px rgba(0,0,0,0.3); }
         
+        .color-picker-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #ccc;
+            cursor: pointer;
+            background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+            padding: 0;
+            margin: 0;
+        }
+
         .size-btn { padding: 3px 8px; font-size: 12px; background: #fff; color: #2c3e50; border: 1px solid #ccd5ae; border-radius: 4px; cursor: pointer; }
         .size-btn.active { background: #d4a373; color: #fff; border-color: #bc6c25; }
 
@@ -218,7 +229,7 @@
     <!-- 1. ルーム接続設定画面 -->
     <div id="login-screen" class="card">
         <h2>ルーム接続設定</h2>
-        <p style="font-size: 14px; color: #555;">みんなでワードと画像を持ち寄って遊ぶ、オンライン神経衰弱ゲームです[cite: 1]。</p>
+        <p style="font-size: 14px; color: #555;">みんなでワードと2枚の画像を持ち寄って遊ぶ、オンライン神経衰弱ゲームです。</p>
         
         <div style="margin-bottom: 15px;">
             <input type="text" id="player-name-input" placeholder="ハンドルネームを入力" value="プレイヤーネーム" style="width: 35%;">
@@ -268,6 +279,8 @@
                     <button class="color-btn" style="background: #e74c3c;" data-color="#e74c3c" title="赤"></button>
                     <button class="color-btn" style="background: #27ae60;" data-color="#27ae60" title="緑"></button>
                     <button class="color-btn" style="background: #2980b9;" data-color="#2980b9" title="青"></button>
+                    <button class="color-picker-btn" id="lobby-color-picker-trigger" title="カラーパレット"></button>
+                    <input type="color" id="lobby-native-color-picker" value="#000000" style="display:none;" onchange="setLobbyCustomColor(this.value)">
                 </div>
                 <div class="tool-group">
                     <button class="mode-btn active" id="lobby-mode-pen-btn" onclick="setLobbyMode('pen')">✏️ ペン</button>
@@ -291,10 +304,10 @@
 
         <hr style="border:0; border-top:1px solid #ccd5ae; margin: 15px 0;">
 
-        <!-- ワード＆画像URL持ち寄り入力エリア -->
+        <!-- ワード＆2枚の画像URL持ち寄り入力エリア -->
         <div style="background: #fefae0; border: 2px solid #d4a373; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-            <h3 style="color: #bc6c25; margin-top:0;">✍️ あなたの持ち寄りワード＆画像URL入力</h3>
-            <p style="font-size: 13px; color: #555;">ペアとなる「ワード」と、表示させたい「画像URL（またはYouTube URL）」を入力してください[cite: 1]。</p>
+            <h3 style="color: #bc6c25; margin-top:0;">✍️ あなたの持ち寄りワード＆2枚の画像URL入力</h3>
+            <p style="font-size: 13px; color: #555;">1つのワードにつき、ペアとなる**2枚の画像（またはYouTube）のURL**を設定してください。</p>
             
             <div id="my-word-inputs-container" style="display:flex; flex-direction:column; gap:12px;"></div>
             <button onclick="submitMyWords()" style="background: #27ae60; color:#fff; margin-top:15px; width:100%;">ワード＆画像を決定・送信する</button>
@@ -304,7 +317,7 @@
         <!-- ゲーム設定（ホストのみ変更可能、ゲストへ同期） -->
         <div id="host-settings-area">
             <h3>ゲーム設定（ホストのみ変更可能）</h3>
-            <label>1人あたりの持ち寄りカード数 (1〜5個): 
+            <label>1人あたりの持ち寄りワード数 (1〜5個): 
                 <select id="words-per-person" onchange="onWordsPerPersonChange(this.value)">
                     <option value="1">1個</option>
                     <option value="2" selected>2個</option>
@@ -341,7 +354,7 @@
             <strong>🏆 スコアボード:</strong> <span id="score-display"></span>
         </div>
 
-        <!-- 画面上部 一括ペン設定ツールバー -->
+        <!-- 画面上部 一括ペン設定ツールバー（カラーパレット完備） -->
         <div class="drawing-toolbar" id="global-drawing-toolbar">
             <span class="tool-label">🎨 一括ペン設定:</span>
             <div class="tool-group">
@@ -349,6 +362,8 @@
                 <button class="color-btn" style="background: #e74c3c;" data-color="#e74c3c" onclick="setGlobalTool('color', '#e74c3c')"></button>
                 <button class="color-btn" style="background: #27ae60;" data-color="#27ae60" onclick="setGlobalTool('color', '#27ae60')"></button>
                 <button class="color-btn" style="background: #2980b9;" data-color="#2980b9" onclick="setGlobalTool('color', '#2980b9')"></button>
+                <button class="color-picker-btn" id="global-color-picker-trigger" title="カラーパレット"></button>
+                <input type="color" id="global-native-color-picker" value="#000000" style="display:none;" onchange="setGlobalCustomColor(this.value)">
             </div>
             <div class="tool-group">
                 <button class="mode-btn active" id="global-mode-pen" onclick="setGlobalTool('mode', 'pen')">✏️ ペン</button>
@@ -370,8 +385,9 @@
         <!-- 神経衰弱カードグリッド -->
         <div id="field-container"></div>
 
-        <div style="margin-top: 25px; text-align: center;">
+        <div style="margin-top: 25px; text-align: center; display:flex; justify-content:center; gap:15px; flex-wrap:wrap;">
             <button id="end-game-btn" class="hidden" onclick="finishGame()" style="background: #e74c3c; color: #fff; padding: 12px 24px; font-size: 16px;">🏆 結果発表へ進む</button>
+            <button id="back-to-lobby-btn" class="hidden" onclick="resetToLobby()" style="background: #20b2aa; color: #fff; padding: 12px 24px; font-size: 16px;">🏠 ロビーに戻る</button>
         </div>
     </div>
 
@@ -385,14 +401,14 @@
     let state = {
         players: [],
         playerAvatars: {},
-        playerItems: {}, // { playerName: [{word, imgUrl}, ...] }
+        playerItems: {}, // { playerName: [{word, imgUrl1, imgUrl2}, ...] }
         fieldCards: [],
         scores: {},
         currentTurnIndex: 0,
         flippedIndices: [],
         isCheckingMatch: false,
         wordsPerPerson: 2,
-        phase: "lobby",
+        phase: "lobby", // lobby, play, result
         lobbyCanvasData: "",
         archives: []
     };
@@ -400,11 +416,11 @@
     window.myCurrentName = "";
     window.myAvatarUrl = "";
     window.myInputItems = [
-        {word: "", imgUrl: ""},
-        {word: "", imgUrl: ""},
-        {word: "", imgUrl: ""},
-        {word: "", imgUrl: ""},
-        {word: "", imgUrl: ""}
+        {word: "", imgUrl1: "", imgUrl2: ""},
+        {word: "", imgUrl1: "", imgUrl2: ""},
+        {word: "", imgUrl1: "", imgUrl2: ""},
+        {word: "", imgUrl1: "", imgUrl2: ""},
+        {word: "", imgUrl1: "", imgUrl2: ""}
     ];
 
     let lobbyColor = "#000000";
@@ -440,6 +456,12 @@
 
     document.addEventListener("DOMContentLoaded", () => {
         renderWordInputs();
+
+        const lobbyTrigger = document.getElementById('lobby-color-picker-trigger');
+        if(lobbyTrigger) lobbyTrigger.addEventListener('click', () => document.getElementById('lobby-native-color-picker').click());
+
+        const globalTrigger = document.getElementById('global-color-picker-trigger');
+        if(globalTrigger) globalTrigger.addEventListener('click', () => document.getElementById('global-native-color-picker').click());
     });
 
     function setLobbyMode(mode) {
@@ -459,6 +481,12 @@
             if(parseInt(b.getAttribute('data-size')) === size) b.classList.add('active');
             else b.classList.remove('active');
         });
+    }
+
+    function setLobbyCustomColor(hex) {
+        lobbyColor = hex;
+        document.querySelectorAll('#lobby-toolbar .color-btn').forEach(b => b.classList.remove('active'));
+        setLobbyMode('pen');
     }
 
     function toggleLobbyPressure() {
@@ -510,6 +538,12 @@
                 btn.style.color = "#2c3e50";
             }
         }
+    }
+
+    function setGlobalCustomColor(hex) {
+        globalToolColor = hex;
+        document.querySelectorAll('#global-drawing-toolbar .color-btn').forEach(b => b.classList.remove('active'));
+        setGlobalTool('mode', 'pen');
     }
 
     function isYoutubeUrl(url) {
@@ -672,7 +706,7 @@
         const count = state.wordsPerPerson || 2;
 
         for(let i=0; i<count; i++) {
-            const item = window.myInputItems[i] || {word: "", imgUrl: ""};
+            const item = window.myInputItems[i] || {word: "", imgUrl1: "", imgUrl2: ""};
             const div = document.createElement("div");
             div.style.background = "#fff";
             div.style.padding = "10px";
@@ -681,12 +715,16 @@
             div.innerHTML = `
                 <div style="font-weight:bold; margin-bottom:4px; color:#bc6c25;">カード #${i+1}</div>
                 <div style="display:flex; gap:8px; align-items:center; margin-bottom:4px;">
-                    <span style="font-size:13px; min-width:50px;">ワード:</span>
+                    <span style="font-size:13px; min-width:65px;">ワード:</span>
                     <input type="text" id="word-input-${i}" value="${item.word}" placeholder="例：モナリザ、ひまわり..." style="flex:1;" oninput="window.myInputItems[${i}].word = this.value">
                 </div>
+                <div style="display:flex; gap:8px; align-items:center; margin-bottom:4px;">
+                    <span style="font-size:13px; min-width:65px;">画像① URL:</span>
+                    <input type="text" id="img1-input-${i}" value="${item.imgUrl1}" placeholder="1枚目の画像 または YouTube URL" style="flex:1;" oninput="window.myInputItems[${i}].imgUrl1 = this.value">
+                </div>
                 <div style="display:flex; gap:8px; align-items:center;">
-                    <span style="font-size:13px; min-width:50px;">画像URL:</span>
-                    <input type="text" id="img-input-${i}" value="${item.imgUrl}" placeholder="https://... または YouTube URL" style="flex:1;" oninput="window.myInputItems[${i}].imgUrl = this.value">
+                    <span style="font-size:13px; min-width:65px;">画像② URL:</span>
+                    <input type="text" id="img2-input-${i}" value="${item.imgUrl2}" placeholder="2枚目の画像 または YouTube URL" style="flex:1;" oninput="window.myInputItems[${i}].imgUrl2 = this.value">
                 </div>
             `;
             container.appendChild(div);
@@ -698,22 +736,24 @@
         let myItems = [];
         for(let i=0; i<count; i++) {
             const wordElem = document.getElementById(`word-input-${i}`);
-            const imgElem = document.getElementById(`img-input-${i}`);
+            const img1Elem = document.getElementById(`img1-input-${i}`);
+            const img2Elem = document.getElementById(`img2-input-${i}`);
+
             const wordVal = wordElem ? wordElem.value.trim() : (window.myInputItems[i]?.word || "").trim();
-            const imgVal = imgElem ? imgElem.value.trim() : (window.myInputItems[i]?.imgUrl || "").trim();
+            const img1Val = img1Elem ? img1Elem.value.trim() : (window.myInputItems[i]?.imgUrl1 || "").trim();
+            const img2Val = img2Elem ? img2Elem.value.trim() : (window.myInputItems[i]?.imgUrl2 || "").trim();
 
             if(!wordVal) return alert(`カード #${i+1} のワードを入力してください`);
-            if(!imgVal) return alert(`カード #${i+1} の画像URLを入力してください`);
+            if(!img1Val || !img2Val) return alert(`カード #${i+1} の画像URLは2枚とも入力してください`);
 
-            myItems.push({ word: wordVal, imgUrl: imgVal });
+            myItems.push({ word: wordVal, imgUrl1: img1Val, imgUrl2: img2Val });
         }
 
         state.playerItems[window.myCurrentName] = myItems;
         syncAndPush();
-        document.getElementById("word-status-msg").innerText = "✨ ワード＆画像を送信しました！";
+        document.getElementById("word-status-msg").innerText = "✨ ワード＆画像ペアを送信しました！";
     }
 
-    // ゲーム開始（各自の持ち寄り画像・動画をプリロードしてから開館）
     async function startMuseumGame() {
         if(!isHost) return;
         
@@ -728,14 +768,15 @@
             const items = state.playerItems[playerName];
             items.forEach(item => {
                 const cardPairId = Math.random().toString(36).substring(2);
-                allCardItems.push({ id: cardPairId, playerName, word: item.word, imgUrl: item.imgUrl, points: 1 });
-                allCardItems.push({ id: cardPairId, playerName, word: item.word, imgUrl: item.imgUrl, points: 1 });
+                // 1つのワードにつき2つの異なる画像URLをそれぞれ割り当てる
+                allCardItems.push({ id: cardPairId, playerName, word: item.word, imgUrl: item.imgUrl1, points: 1 });
+                allCardItems.push({ id: cardPairId, playerName, word: item.word, imgUrl: item.imgUrl2, points: 1 });
             });
         });
 
         allCardItems.sort(() => Math.random() - 0.5);
 
-        // 画像の事前読み込み（プリロード：YouTube以外の画像URLを対象）
+        // 画像の事前読み込み（プリロード）
         const preloadPromises = allCardItems.map(item => {
             return new Promise((resolve) => {
                 if(isYoutubeUrl(item.imgUrl)) {
@@ -849,6 +890,17 @@
         broadcastState();
     }
 
+    function resetToLobby() {
+        if(!isHost) return;
+        state.phase = "lobby";
+        state.fieldCards = [];
+        state.scores = {};
+        state.currentTurnIndex = 0;
+        state.flippedIndices = [];
+        state.isCheckingMatch = false;
+        broadcastState();
+    }
+
     function renderAvatarHtml(playerName) {
         const avatarUrl = state.playerAvatars[playerName];
         if(avatarUrl) {
@@ -919,6 +971,16 @@
             const scoreDisplay = document.getElementById("score-display");
             if(scoreDisplay) scoreDisplay.innerHTML = scoreHtml;
 
+            // リザルト画面時のロビーに戻るボタン制御
+            const lobbyBackBtn = document.getElementById("back-to-lobby-btn");
+            if(lobbyBackBtn) {
+                if(state.phase === "result" && isHost) {
+                    lobbyBackBtn.classList.remove("hidden");
+                } else {
+                    lobbyBackBtn.classList.add("hidden");
+                }
+            }
+
             renderFieldCards();
         }
     }
@@ -938,10 +1000,12 @@
             let backSideHtml = "";
             let actionBtnHtml = "";
 
+            // めくられておらず、かつマッチもしていない場合は裏面を表示
             if(!card.isFlipped && !card.isMatched) {
                 backSideHtml = `
                     <div class="card-back-side">
                         <div class="card-back-overlay"></div>
+                        <canvas class="draw-canvas" id="canvas-back-${idx}" style="pointer-events:auto; z-index:7;"></canvas>
                     </div>
                 `;
                 actionBtnHtml = `<button onclick="flipCard(${idx})" style="background:#bc6c25; color:#fff; width:100%; margin-top:8px; padding:8px; font-weight:bold; z-index:15; position:relative;">📖 このカードをめくる</button>`;
@@ -954,13 +1018,14 @@
                 matchBadgeHtml = `<div class="matched-badge">✨ 揃った！ (${card.matchOwner})</div>`;
             }
 
-            let displayWordOrHidden = (card.isFlipped || card.isMatched || isGameEnded) ? card.word : "？？？";
-            let displayOwnerOrHidden = (isGameEnded || card.isMatched) ? `提示: ${card.playerName}` : "提示: 秘密";
+            // ワードと提示者は結果発表（result）になるまで完全に隠す
+            let displayWordOrHidden = (isGameEnded) ? card.word : "？？？";
+            let displayOwnerOrHidden = (isGameEnded) ? `提示: ${card.playerName}` : "提示: 秘密";
 
             const ytId = isYoutubeUrl(card.imgUrl);
             let mediaTag = "";
             if(ytId) {
-                mediaTag = getYoutubeIframeHtml(ytId);
+                mediaTag = getYoutubeIframeHtml(card.imgUrl);
             } else {
                 mediaTag = `<img src="${card.imgUrl}" alt="Card Image" onerror="this.style.display='none';">`;
             }
@@ -971,7 +1036,8 @@
                 
                 <div class="canvas-container">
                     ${mediaTag}
-                    <canvas class="draw-canvas" id="canvas-${idx}" style="${ytId ? 'pointer-events:none; display:none;' : ''}"></canvas>
+                    <!-- 表面の落書きキャンバス -->
+                    <canvas class="draw-canvas" id="canvas-front-${idx}" style="${ytId ? 'pointer-events:none; display:none;' : ''}"></canvas>
                 </div>
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
@@ -985,8 +1051,12 @@
             `;
             container.appendChild(cardDiv);
 
+            // 裏面用と表面用のキャンバス描画をそれぞれセットアップ
+            if(!card.isFlipped && !card.isMatched) {
+                setupCardCanvas(`canvas-back-${idx}`, idx, card, 'back');
+            }
             if(!ytId) {
-                setupCardCanvas(`canvas-${idx}`, idx, card);
+                setupCardCanvas(`canvas-front-${idx}`, idx, card, 'front');
             }
         });
     }
@@ -1036,7 +1106,7 @@
         setupLobbyCanvas();
     }
 
-    function setupCardCanvas(canvasId, cardIndex, cardData) {
+    function setupCardCanvas(canvasId, cardIndex, cardData, side) {
         const canvas = document.getElementById(canvasId);
         if(!canvas) return;
         const ctx = canvas.getContext('2d');
