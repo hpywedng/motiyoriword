@@ -845,7 +845,7 @@
 
         if(state.flippedIndices.length === 2) {
             state.isCheckingMatch = true; // 2枚揃ったので即座にロック開始
-            syncAndPush(); // 即座にボタンを非表示にするため同期
+            syncAndPush(); // 即座にキャンバスの操作やボタンを無効化するため同期
 
             const idx1 = state.flippedIndices[0];
             const idx2 = state.flippedIndices[1];
@@ -1015,13 +1015,14 @@
 
             if(!card.isFlipped && !card.isMatched) {
                 activeSide = 'back';
+                // ★判定中（state.isCheckingMatch === true）のときはポインターイベントを無効化して落書きを完全にブロック
+                const pointerStyle = state.isCheckingMatch ? 'pointer-events:none; z-index:7;' : 'pointer-events:auto; z-index:7;';
                 backSideHtml = `
                     <div class="card-back-side">
                         <div class="card-back-overlay"></div>
-                        <canvas class="draw-canvas" id="canvas-card-${idx}" style="pointer-events:auto; z-index:7;"></canvas>
+                        <canvas class="draw-canvas" id="canvas-card-${idx}" style="${pointerStyle}"></canvas>
                     </div>
                 `;
-                // ★ 判定中（state.isCheckingMatch === true）のときは、めくるボタンを一切表示しない（厳格なロック）
                 if(!state.isCheckingMatch) {
                     actionBtnHtml = `<button onclick="flipCard(${idx})" style="background:#bc6c25; color:#fff; width:100%; margin-top:8px; padding:8px; font-weight:bold; z-index:15; position:relative;">📖 このカードをめくる</button>`;
                 } else {
@@ -1047,13 +1048,16 @@
                 mediaTag = `<img src="${card.imgUrl}" alt="Card Image" onerror="this.style.display='none';">`;
             }
 
+            // 判定中のときは公開中のカード側のキャンバスもポインターイベントをオフにする
+            const frontPointerStyle = (state.isCheckingMatch || ytId) ? 'pointer-events:none; display:' + (ytId ? 'none;' : 'block;') : 'pointer-events:auto;';
+
             cardDiv.innerHTML = `
                 <div style="font-size:11px; color:#7f8c8d; margin-bottom:2px;">配点: ${card.points}pt</div>
                 <div style="font-size:15px; margin-bottom: 4px; height:36px; overflow:hidden; display:flex; align-items:center; justify-content:center;"><strong>${displayWordOrHidden}</strong></div>
                 
                 <div class="canvas-container">
                     ${mediaTag}
-                    ${(!card.isFlipped && !card.isMatched) ? '' : `<canvas class="draw-canvas" id="canvas-card-${idx}" style="${ytId ? 'pointer-events:none; display:none;' : ''}"></canvas>`}
+                    ${(!card.isFlipped && !card.isMatched) ? '' : `<canvas class="draw-canvas" id="canvas-card-${idx}" style="${frontPointerStyle}"></canvas>`}
                 </div>
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
@@ -1134,13 +1138,14 @@
 
         let isDrawing = false;
         canvas.onpointerdown = (e) => {
+            if(state.isCheckingMatch) return; // 判定中は描画開始もブロック
             isDrawing = true;
             ctx.beginPath();
             ctx.moveTo(e.offsetX, e.offsetY);
             e.stopPropagation();
         };
         canvas.onpointermove = (e) => {
-            if(!isDrawing) return;
+            if(!isDrawing || state.isCheckingMatch) return;
             e.preventDefault();
             if(globalToolMode === 'eraser') {
                 ctx.strokeStyle = '#ffffff';
