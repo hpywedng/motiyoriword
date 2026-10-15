@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>モチヨリ美術館 - 持ち寄りワードで神経衰弱</title>
+    <!-- PeerJSライブラリの読み込み -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #fdfbf7;
+            --card-bg: #ffffff;
+            --text-color: #2c3e50;
+            --primary: #d4a373; /* 温かみのあるウッド調/美術館テーマカラー */
+            --primary-light: #faedcd;
+            --accent: #ccd5ae;  
+            --accent-border: #b7b99c;
+            --border-color: #e9edc9;
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: var(--bg-color); 
+            color: var(--text-color); 
+            margin: 0; 
+            padding: 20px; 
+        }
+        h1, h2, h3 { color: #3a2e2b; }
+        .card { 
+            background: var(--card-bg); 
+            border-radius: 12px; 
+            padding: 20px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 4px 12px rgba(212, 163, 115, 0.15); 
+            border: 1px solid #d8f3dc;
+        }
+        input, select, button { 
+            padding: 10px; 
+            margin: 5px 0; 
+            border-radius: 6px; 
+            border: 1px solid #ccd5ae; 
+            background: #fefae0; 
+            color: #2c3e50; 
+            font-size: 16px; 
+        }
+        input:focus { outline: none; border-color: #d4a373; background: #fff; }
+        button { background: #d4a373; color: #fff; cursor: pointer; border: none; font-weight: bold; transition: background 0.2s; }
+        button:hover { background: #bc6c25; }
+        .hidden { display: none !important; }
+        .flex { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        
+        /* プレイヤーバッジ＆アイコン */
+        .player-badge {
+            display: inline-flex;
+            align-items: center;
+            background: #faedcd;
+            border: 1px solid #ccd5ae;
+            padding: 4px 10px;
+            border-radius: 16px;
+            margin: 2px 4px;
+            font-weight: bold;
+            color: #3a2e2b;
+            gap: 6px;
+        }
+        .player-avatar-small {
+            width: 24px !important;
+            height: 24px !important;
+            min-width: 24px !important;
+            min-height: 24px !important;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #bc6c25;
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            border: 1px solid #fff;
+            box-sizing: border-box;
+        }
+        .player-badge .remove-btn {
+            margin-left: 4px;
+            color: #e74c3c;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* 場のカード一覧（テーブルエリア） */
+        #field-container, .archive-field-container { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px; }
+        
+        /* 神経衰弱カードスタイル */
+        .memory-card { 
+            background: #ffffff; 
+            border: 3px solid #d4a373; 
+            border-radius: 12px; 
+            padding: 12px; 
+            width: 200px; 
+            text-align: center; 
+            position: relative; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .memory-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(212, 163, 115, 0.3);
+        }
+        .memory-card.matched {
+            border-color: #27ae60;
+            background: #f0fff4;
+            cursor: default;
+            transform: none;
+        }
+
+        /* トランプ裏面（メモ書き・チャチャ入れ対応）風スタイル */
+        .card-back-side {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhUCE0FkJ5HUq_NFpqPB9GCMfqxgsOtEptXJCdlHe8ES8HkwGRfe5U3hQZoR_4RqFn-u2BYwNc9jUOHtgI0uUEAEjQsD3TZFzH-8fJHlEk29YHHkUe0oOSC4E9wUefe0c2BA88eORbO8ylj/s400/card_back.png');
+            background-size: cover;
+            border-radius: 9px;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        /* 白50%オーバーレイを重ねて文字や落書きが見やすくする */
+        .card-back-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 9px;
+        }
+        .card-back-content {
+            position: relative;
+            z-index: 6;
+            width: 100%;
+            height: 100%;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 160px;
+            border-radius: 8px;
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            margin-top: 8px;
+            overflow: hidden;
+            touch-action: none;
+        }
+        .memory-card img { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+        }
+        .memory-card img { pointer-events: none; }
+        .draw-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            touch-action: none;
+            z-index: 10;
+        }
+
+        .matched-badge { 
+            font-size: 14px; 
+            font-weight: bold; 
+            color: #27ae60; 
+            background: #e8f5e9; 
+            padding: 4px 8px; 
+            border-radius: 6px; 
+            display: inline-block; 
+            margin-top: 6px; 
+            border: 1px solid #c8e6c9; 
+        }
+        
+        .clear-canvas-btn { background: #e74c3c; font-size: 11px; padding: 3px 6px; margin: 0; }
+        .clear-canvas-btn:hover { background: #c0392b; }
+
+        .vote-area { margin-top: 6px; display: flex; justify-content: space-around; background: #fefae0; padding: 4px; border-radius: 6px; border: 1px solid #ccd5ae; }
+        .vote-btn { background: #fff; border: 1px solid #ccd5ae; padding: 2px 6px; border-radius: 4px; font-size: 12px; cursor: pointer; color: #2c3e50; display: flex; align-items: center; gap: 3px; margin: 0; }
+        .vote-btn:hover { background: #faedcd; }
+
+        /* お絵描きツールバーのデザイン */
+        .drawing-toolbar {
+            background: #ffffff;
+            border: 2px solid #d4a373;
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .tool-group { display: flex; gap: 6px; align-items: center; }
+        .tool-label { font-size: 13px; font-weight: bold; color: #555; }
+        
+        .color-btn { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #ccc; cursor: pointer; padding: 0; margin: 0; transition: transform 0.1s; }
+        .color-btn.active { transform: scale(1.2); border-color: #3a2e2b; box-shadow: 0 0 5px rgba(0,0,0,0.3); }
+        
+        .color-picker-btn {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 2px solid #ccc;
+            cursor: pointer;
+            background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+            padding: 0;
+            margin: 0;
+        }
+
+        .size-btn { padding: 4px 8px; font-size: 12px; background: #fff; color: #2c3e50; border: 1px solid #ccd5ae; border-radius: 4px; cursor: pointer; }
+        .size-btn.active { background: #d4a373; color: #fff; border-color: #bc6c25; }
+
+        .mode-btn { padding: 5px 10px; font-size: 12px; background: #fff; color: #2c3e50; border: 1px solid #ccd5ae; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .mode-btn.active { background: #bc6c25; color: #fff; border-color: #964f19; }
+
+        .sync-bar { background: #faedcd; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; color: #3a2e2b; font-weight: bold; border: 1px solid #ccd5ae; }
+        .status-msg { font-size: 14px; color: #bc6c25; margin-left: 10px; font-weight: bold; }
+        
+        .score-board { background: #fefae0; border: 1px solid #ccd5ae; padding: 12px; border-radius: 8px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="sync-bar">
+        <div>
+            <span>接続モード: <span id="connection-mode-label" style="color: #bc6c25;">未接続</span></span>
+            <span id="sync-status" class="status-msg">● 待機中</span>
+        </div>
+        <span id="my-peer-id-display" style="font-size: 13px; color: #333;"></span>
+    </div>
+
+    <h1>🖼️ モチヨリ美術館</h1>
+
+    <!-- 1. ルーム作成・参加選択画面 -->
+    <div id="login-screen" class="card">
+        <h2>ルーム接続設定</h2>
+        <p style="font-size: 14px; color: #555;">みんなでワードを持ち寄って遊ぶ、オンライン神経衰弱ゲームです。</p>
+        
+        <div style="margin-bottom: 15px;">
+            <input type="text" id="player-name-input" placeholder="ハンドルネームを入力" value="プレイヤーネーム" style="width: 35%;">
+            <span style="display:inline-flex; align-items:center; gap:4px;">
+                <input type="text" id="player-avatar-input" placeholder="アイコン画像URL (任意)" style="width: 250px;">
+                <button type="button" onclick="pasteFromClipboard('player-avatar-input')" style="padding: 6px 10px; font-size: 13px;">📋 貼付</button>
+                <button type="button" onclick="clearInput('player-avatar-input')" style="padding: 6px 10px; font-size: 13px; background:#e74c3c;">×</button>
+            </span>
+        </div>
+
+        <div style="background: #faedcd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ccd5ae;">
+            <h3>A. 新しく部屋を作る（ホスト）</h3>
+            <label>作りたいルームID: <input type="text" id="create-room-id-input" value="museum101" style="width: 40%;"></label><br>
+            <button onclick="createRoom()" style="background: #bc6c25; margin-top: 5px;">ルームを作成する</button>
+        </div>
+
+        <div style="background: #fefae0; padding: 15px; border-radius: 8px; border: 1px solid #ccd5ae;">
+            <h3>B. 既存の部屋に参加する（ゲスト）</h3>
+            <label>参加するルームID: <input type="text" id="join-room-id-input" placeholder="ホストのルームID" value="museum101" style="width: 40%;"></label><br>
+            <button onclick="joinRoom()" style="background: #d4a373; margin-top: 5px;">ルームに参加する</button>
+        </div>
+    </div>
+
+    <!-- 2. ロビー・準備画面 -->
+    <div id="lobby-screen" class="card hidden">
+        <h2>ロビー <span style="font-size: 14px; font-weight: normal; color: #555;">(ルームID: <span id="display-room-id" style="font-weight:bold; color:#bc6c25; user-select: all;"></span>)</span></h2>
+        <p style="font-size: 13px; color: #c0392b;" id="host-share-notice">※このルームIDをフレンドに共有してください。</p>
+        
+        <p>参加メンバー: <span id="player-list"></span></p>
+        <div class="flex" style="margin-bottom: 15px;">
+            <button onclick="leaveGame()" style="background: #e74c3c; font-size: 14px;">🚪 退室する</button>
+        </div>
+
+        <hr style="border:0; border-top:1px solid #ccd5ae; margin: 15px 0;">
+
+        <!-- ロビー共有キャンバス -->
+        <div style="background: #fefae0; border: 2px solid #d4a373; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                <h3 style="margin: 0; color: #bc6c25;">🎨 ロビー用 共有落書きボード</h3>
+                <button class="clear-canvas-btn" onclick="clearLobbyCanvas()">🧹 ボードをクリア</button>
+            </div>
+            <p style="font-size: 13px; color: #555; margin-top:0;">ゲーム開始前にみんなで落書きして遊ぼう！</p>
+            
+            <div class="drawing-toolbar" id="lobby-toolbar">
+                <span class="tool-label">🎨 ペン:</span>
+                <div class="tool-group">
+                    <button class="color-btn" style="background: #ffffff;" data-color="#ffffff" title="白"></button>
+                    <button class="color-btn active" style="background: #000000;" data-color="#000000" title="黒"></button>
+                    <button class="color-btn" style="background: #bc6c25;" data-color="#bc6c25" title="ブラウン"></button>
+                    <button class="color-btn" style="background: #e74c3c;" data-color="#e74c3c" title="赤"></button>
+                    <button class="color-btn" style="background: #27ae60;" data-color="#27ae60" title="緑"></button>
+                    <button class="color-btn" style="background: #2980b9;" data-color="#2980b9" title="青"></button>
+                    <button class="color-picker-btn" id="lobby-custom-color-trigger" title="カラーパレット"></button>
+                    <input type="color" id="lobby-native-color-picker" value="#000000" style="display:none;" onchange="selectCustomColor(this.value)">
+                </div>
+                <div class="tool-group">
+                    <button class="mode-btn active" id="lobby-mode-pen-btn" onclick="setDrawingMode('pen')">✏️ ペン</button>
+                    <button class="mode-btn" id="lobby-mode-eraser-btn" onclick="setDrawingMode('eraser')">🧹 消しゴム</button>
+                </div>
+                <div class="tool-group">
+                    <span class="tool-label">太さ:</span>
+                    <button class="size-btn" data-size="2" onclick="setBrushSize(2)">細</button>
+                    <button class="size-btn active" data-size="5" onclick="setBrushSize(5)">中</button>
+                    <button class="size-btn" data-size="10" onclick="setBrushSize(10)">太</button>
+                </div>
+            </div>
+
+            <div style="position:relative; width:100%; height:260px; background:#fff; border:1px solid #ccd5ae; border-radius:8px; overflow:hidden; touch-action:none;">
+                <canvas class="draw-canvas" id="lobby-draw-canvas"></canvas>
+            </div>
+        </div>
+
+        <hr style="border:0; border-top:1px solid #ccd5ae; margin: 15px 0;">
+
+        <!-- ワード持ち寄り入力エリア -->
+        <div style="background: #fefae0; border: 2px solid #d4a373; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+            <h3 style="color: #bc6c25; margin-top:0;">✍️ あなたの持ち寄りワード入力</h3>
+            <p style="font-size: 13px; color: #555;">神経衰弱のカードにするためのワードを入力してください。グーグル検索用候補画像はシステムが自動選出します！</p>
+            
+            <div id="my-word-inputs-container" style="display:flex; flex-direction:column; gap:8px;">
+                <!-- 動的生成 -->
+            </div>
+            <button onclick="submitMyWords()" style="background: #27ae60; color:#fff; margin-top:10px; width:100%;">ワードを決定・送信する</button>
+            <p id="word-status-msg" style="font-size: 13px; font-weight:bold; color:#27ae60; margin-top:5px;"></p>
+        </div>
+
+        <!-- ゲーム設定（ホストのみ） -->
+        <div id="host-settings-area">
+            <h3>ゲーム設定（ホストのみ変更可能）</h3>
+            <label>1人あたりの持ち寄りワード数: 
+                <select id="words-per-person">
+                    <option value="1">1個</option>
+                    <option value="2" selected>2個</option>
+                    <option value="3">3個</option>
+                </select>
+            </label><br><br>
+            <button onclick="startMuseumGame()" style="background: #bc6c25; color: #fff; padding: 12px 24px; font-size:18px;">🏛️ モチヨリ美術館を開館する（ゲーム開始）</button>
+        </div>
+        <div id="guest-waiting-notice" class="hidden">
+            <p style="color: #555; font-weight: bold;">全員のワード入力を待っています...（ホストが開始します）</p>
+        </div>
+
+        <!-- 過去ログ -->
+        <div id="archive-section" class="hidden" style="margin-top: 25px;">
+            <hr style="border:0; border-top:2px solid #d4a373; margin: 25px 0;">
+            <h3 style="color: #bc6c25;">📜 過去の美術館展示記録（直近2ゲーム）</h3>
+            <div id="archive-container"></div>
+        </div>
+    </div>
+
+    <!-- 3. メインプレイ画面（神経衰弱フィールド） -->
+    <div id="game-screen" class="card hidden">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+            <h2 style="color: #bc6c25; margin:0;">🏛️ モチヨリ美術館 - 展示室</h2>
+            <div id="turn-info" style="font-size: 18px; font-weight:bold; background: #faedcd; padding: 6px 14px; border-radius: 8px; border: 1px solid #ccd5ae;">
+                手番: <span id="current-turn-player" style="color:#bc6c25;">-</span>
+            </div>
+        </div>
+
+        <!-- スコアボード -->
+        <div class="score-board">
+            <strong>🏆 スコアボード:</strong> <span id="score-display"></span>
+        </div>
+
+        <p style="font-size: 14px; color: #555;">カードを2枚めくってペアを揃えよう！ トランプ裏面をクリック/タップすると、自分だけのメモ書きやチャチャ入れができます。</p>
+
+        <!-- 神経衰弱カードグリッド -->
+        <div id="field-container"></div>
+
+        <div style="margin-top: 25px; text-align: center;">
+            <button id="end-game-btn" class="hidden" onclick="finishGame()" style="background: #e74c3c; color: #fff; padding: 12px 24px; font-size: 16px;">🏆 結果発表へ進む</button>
+        </div>
+    </div>
+
+<script>
+    let peer = null;
+    let conn = null; 
+    let hostConnections = []; 
+    let isHost = false;
+    let myRoomId = "";
+    
+    // 全員共有ステート
+    let state = {
+        players: [],
+        playerAvatars: {},
+        playerWords: {}, // { playerName: [word1, word2, ...] }
+        fieldCards: [],  // 神経衰弱カード配列
+        scores: {},      // { playerName: score }
+        currentTurnIndex: 0,
+        flippedIndices: [], // 現在めくっているカードのインデックス (最大2枚)
+        phase: "lobby", // lobby, play, result
+        lobbyCanvasData: "",
+        archives: []
+    };
+
+    window.myCurrentName = "";
+    window.myAvatarUrl = "";
+    window.myInputWords = ["", ""];
+
+    // ツールバー設定
+    let currentDrawingColor = "#000000";
+    let currentBrushSize = 5;
+    let currentToolMode = "pen";
+
+    async function pasteFromClipboard(inputId) {
+        try {
+            const text = await navigator.clipboard.readText();
+            const input = document.getElementById(inputId);
+            if(input) {
+                input.value = text;
+                input.dispatchEvent(new Event('input'));
+            }
+        } catch(err) {
+            alert("クリップボードの読み取りに失敗しました。");
+        }
+    }
+
+    function clearInput(inputId) {
+        const input = document.getElementById(inputId);
+        if(input) {
+            input.value = "";
+            input.dispatchEvent(new Event('input'));
+        }
+    }
+
+    function selectCustomColor(hexColor) {
+        currentDrawingColor = hexColor;
+    }
+
+    function setDrawingMode(mode) {
+        currentToolMode = mode;
+        if(mode === 'pen') {
+            document.getElementById('lobby-mode-pen-btn').classList.add('active');
+            document.getElementById('lobby-mode-eraser-btn').classList.remove('active');
+        } else {
+            document.getElementById('lobby-mode-eraser-btn').classList.add('active');
+            document.getElementById('lobby-mode-pen-btn').classList.remove('active');
+        }
+    }
+
+    function setBrushSize(size) {
+        currentBrushSize = size;
+        document.querySelectorAll('.size-btn').forEach(b => {
+            if(parseInt(b.getAttribute('data-size')) === size) b.classList.add('active');
+            else b.classList.remove('active');
+        });
+    }
+
+    function initPeer(customId, callback) {
+        peer = new Peer(customId, { debug: 1 });
+        peer.on('open', (id) => {
+            myRoomId = id;
+            document.getElementById("sync-status").innerText = "● 接続待機OK";
+            if(callback) callback();
+        });
+        peer.on('connection', (incomingConn) => {
+            if(isHost) {
+                hostConnections.push(incomingConn);
+                setupHostConnection(incomingConn);
+            }
+        });
+        peer.on('error', (err) => {
+            console.error(err);
+            if(err.type === 'unavailable-id') {
+                alert("そのルームIDはすでに使われています。「ルームに参加する」から入室してください。");
+            } else {
+                alert("接続エラー: " + err.type);
+            }
+        });
+    }
+
+    function setupHostConnection(c) {
+        c.on('data', (data) => { handleIncomingData(data, c); });
+        c.on('close', () => { hostConnections = hostConnections.filter(item => item !== c); });
+    }
+
+    function setupGuestConnection(c) {
+        c.on('open', () => {
+            document.getElementById("sync-status").innerText = "● ホストと接続完了";
+            c.send({ type: "JOIN", name: window.myCurrentName, avatar: window.myAvatarUrl });
+        });
+        c.on('data', (data) => { handleIncomingData(data, null); });
+        c.on('close', () => { alert("ホストとの接続が切断されました。"); });
+    }
+
+    function handleIncomingData(data, senderConn) {
+        if(isHost) {
+            if(data.type === "JOIN") {
+                if(!state.players.includes(data.name)) {
+                    state.players.push(data.name);
+                }
+                state.playerAvatars[data.name] = data.avatar || "";
+                broadcastState();
+            } else if(data.type === "UPDATE_STATE") {
+                state = data.state;
+                broadcastState();
+            }
+        } else {
+            if(data.type === "STATE_SYNC") {
+                state = data.state;
+                renderCurrentScreen();
+            }
+        }
+    }
+
+    function broadcastState() {
+        renderCurrentScreen();
+        hostConnections.forEach(c => {
+            if(c.open) { c.send({ type: "STATE_SYNC", state: state }); }
+        });
+    }
+
+    function syncAndPush() {
+        if(isHost) {
+            broadcastState();
+        } else {
+            if(conn && conn.open) { conn.send({ type: "UPDATE_STATE", state: state }); }
+        }
+    }
+
+    function createRoom() {
+        const nameInput = document.getElementById("player-name-input").value.trim();
+        const avatarInput = document.getElementById("player-avatar-input").value.trim();
+        const rInput = document.getElementById("create-room-id-input").value.trim();
+        if(!nameInput) return alert("名前を入力してください");
+        if(!rInput) return alert("ルームIDを入力してください");
+
+        window.myCurrentName = nameInput;
+        window.myAvatarUrl = avatarInput;
+        isHost = true;
+        document.getElementById("connection-mode-label").innerText = "ホスト（美術館の館長）";
+
+        const fullRoomId = "motiyori-art-" + rInput;
+        initPeer(fullRoomId, () => {
+            if(!state.players.includes(window.myCurrentName)) {
+                state.players.push(window.myCurrentName);
+            }
+            state.playerAvatars[window.myCurrentName] = window.myAvatarUrl;
+            renderCurrentScreen();
+        });
+    }
+
+    function joinRoom() {
+        const nameInput = document.getElementById("player-name-input").value.trim();
+        const avatarInput = document.getElementById("player-avatar-input").value.trim();
+        const rInput = document.getElementById("join-room-id-input").value.trim();
+        if(!nameInput) return alert("名前を入力してください");
+        if(!rInput) return alert("ルームIDを入力してください");
+
+        window.myCurrentName = nameInput;
+        window.myAvatarUrl = avatarInput;
+        isHost = false;
+        document.getElementById("connection-mode-label").innerText = "ゲスト（鑑賞者）";
+        document.getElementById("host-share-notice").classList.add("hidden");
+        document.getElementById("host-settings-area").classList.add("hidden");
+        document.getElementById("guest-waiting-notice").classList.remove("hidden");
+
+        const fullRoomId = "motiyori-art-" + rInput;
+        initPeer(undefined, () => {
+            conn = peer.connect(fullRoomId);
+            setupGuestConnection(conn);
+        });
+    }
+
+    function leaveGame() { location.reload(); }
+
+    function removePlayer(name) {
+        if(!isHost) return;
+        state.players = state.players.filter(p => p !== name);
+        delete state.playerAvatars[name];
+        delete state.playerWords[name];
+        syncAndPush();
+    }
+
+    function renderWordInputs() {
+        const container = document.getElementById("my-word-inputs-container");
+        container.innerHTML = "";
+        const count = parseInt(document.getElementById("words-per-person")?.value || 2);
+
+        for(let i=0; i<count; i++) {
+            const val = window.myInputWords[i] || "";
+            const div = document.createElement("div");
+            div.style.display = "flex";
+            div.style.gap = "8px";
+            div.style.alignItems = "center";
+            div.innerHTML = `
+                <span style="font-weight:bold; min-width:60px;">ワード${i+1}:</span>
+                <input type="text" id="word-input-${i}" value="${val}" placeholder="例：猫、ラーメン、宇宙..." style="flex:1;" oninput="window.myInputWords[${i}] = this.value">
+            `;
+            container.appendChild(div);
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const sel = document.getElementById("words-per-person");
+        if(sel) sel.addEventListener("change", renderWordInputs);
+        renderWordInputs();
+    });
+
+    function submitMyWords() {
+        const count = parseInt(document.getElementById("words-per-person")?.value || 2);
+        let myWords = [];
+        for(let i=0; i<count; i++) {
+            const val = (window.myInputWords[i] || "").trim();
+            if(!val) return alert(`ワード ${i+1} を入力してください`);
+            myWords.push(val);
+        }
+
+        state.playerWords[window.myCurrentName] = myWords;
+        syncAndPush();
+        document.getElementById("word-status-msg").innerText = "✨ ワードを提出しました！";
+    }
+
+    function startMuseumGame() {
+        if(!isHost) return;
+        
+        for(let p of state.players) {
+            if(!state.playerWords[p] || state.playerWords[p].length === 0) {
+                return alert(`プレイヤー "${p}" のワードがまだ提出されていません！`);
+            }
+        }
+
+        let allCardItems = [];
+        state.players.forEach(playerName => {
+            const words = state.playerWords[playerName];
+            words.forEach(word => {
+                const randomId = Math.floor(Math.random() * 1000) + 1;
+                const imgUrl = `https://picsum.photos/seed/${encodeURIComponent(word + randomId)}/300/300`;
+                const cardPairId = Math.random().toString(36.substring(2));
+                allCardItems.push({ id: cardPairId, playerName, word, imgUrl, points: 1 });
+                allCardItems.push({ id: cardPairId, playerName, word, imgUrl, points: 1 });
+            });
+        });
+
+        let allWordsFlattened = [];
+        Object.values(state.playerWords).forEach(wList => allWordsFlattened.push(...wList));
+        if(allWordsFlattened.length >= 2) {
+            const w1 = allWordsFlattened[Math.floor(Math.random() * allWordsFlattened.length)];
+            let w2 = allWordsFlattened[Math.floor(Math.random() * allWordsFlattened.length)];
+            if(w1 === w2 && allWordsFlattened.length > 1) {
+                w2 = allWordsFlattened.find(w => w !== w1) || w2;
+            }
+            const chimeraWord = `${w1}×${w2}キメラ`;
+            const chimeraImg = `https://picsum.photos/seed/${encodeURIComponent(chimeraWord)}/300/300`;
+            const chimeraPairId = "chimera-" + Math.random().toString(36).substring(2);
+            
+            allCardItems.push({ id: chimeraPairId, playerName: "キメラ館長", word: chimeraWord, imgUrl: chimeraImg, points: 3 });
+            allCardItems.push({ id: chimeraPairId, playerName: "キメラ館長", word: chimeraWord, imgUrl: chimeraImg, points: 3 });
+        }
+
+        allCardItems.sort(() => Math.random() - 0.5);
+
+        state.fieldCards = allCardItems.map((item, idx) => ({
+            index: idx,
+            id: item.id,
+            playerName: item.playerName,
+            word: item.word,
+            imgUrl: item.imgUrl,
+            points: item.points,
+            isFlipped: false,
+            isMatched: false,
+            matchOwner: null,
+            canvasData: ""
+        }));
+
+        state.scores = {};
+        state.players.forEach(p => { state.scores[p] = 0; });
+
+        state.currentTurnIndex = 0;
+        state.flippedIndices = [];
+        state.phase = "play";
+
+        broadcastState();
+    }
+
+    function flipCard(cardIndex) {
+        if(state.phase !== "play") return;
+        const card = state.fieldCards[cardIndex];
+        if(card.isMatched || card.isFlipped) return;
+        if(state.flippedIndices.length >= 2) return;
+
+        card.isFlipped = true;
+        state.flippedIndices.push(cardIndex);
+
+        if(state.flippedIndices.length === 2) {
+            const idx1 = state.flippedIndices[0];
+            const idx2 = state.flippedIndices[1];
+            const c1 = state.fieldCards[idx1];
+            const c2 = state.fieldCards[idx2];
+
+            if(c1.id === c2.id && idx1 !== idx2) {
+                setTimeout(() => {
+                    c1.isMatched = true;
+                    c2.isMatched = true;
+                    const currentPlayer = state.players[state.currentTurnIndex];
+                    c1.matchOwner = currentPlayer;
+                    c2.matchOwner = currentPlayer;
+
+                    state.scores[currentPlayer] = (state.scores[currentPlayer] || 0) + c1.points;
+                    state.flippedIndices = [];
+
+                    checkGameEnd();
+                    syncAndPush();
+                }, 800);
+            } else {
+                setTimeout(() => {
+                    c1.isFlipped = false;
+                    c2.isFlipped = false;
+                    state.flippedIndices = [];
+                    state.currentTurnIndex = (state.currentTurnIndex + 1) % state.players.length;
+                    syncAndPush();
+                }, 1200);
+            }
+        }
+
+        syncAndPush();
+    }
+
+    function checkGameEnd() {
+        const allMatched = state.fieldCards.every(c => c.isMatched);
+        if(allMatched) {
+            document.getElementById("end-game-btn").classList.remove("hidden");
+        }
+    }
+
+    function finishGame() {
+        if(!isHost) return;
+        if(!state.archives) state.archives = [];
+        state.archives.unshift({
+            cards: JSON.parse(JSON.stringify(state.fieldCards)),
+            scores: JSON.parse(JSON.stringify(state.scores))
+        });
+        if(state.archives.length > 2) state.archives.pop();
+
+        state.phase = "result";
+        broadcastState();
+    }
+
+    function renderAvatarHtml(playerName) {
+        const avatarUrl = state.playerAvatars[playerName];
+        if(avatarUrl) {
+            return `<img src="${avatarUrl}" class="player-avatar-small" onerror="this.outerHTML='<span class=\\'player-avatar-small\\'>${playerName.charAt(0)}</span>';">`;
+        } else {
+            const initial = playerName ? playerName.charAt(0) : "?";
+            return `<span class="player-avatar-small">${initial}</span>`;
+        }
+    }
+
+    function renderCurrentScreen() {
+        document.getElementById("login-screen").classList.add("hidden");
+        document.getElementById("lobby-screen").classList.add("hidden");
+        document.getElementById("game-screen").classList.add("hidden");
+
+        if(state.phase === "lobby") {
+            document.getElementById("lobby-screen").classList.remove("hidden");
+            const displayId = myRoomId.replace("motiyori-art-", "");
+            document.getElementById("display-room-id").innerText = displayId || document.getElementById("join-room-id-input").value;
+            
+            const listContainer = document.getElementById("player-list");
+            listContainer.innerHTML = "";
+            state.players.forEach(p => {
+                const badge = document.createElement("span");
+                badge.className = "player-badge";
+                const avatarHtml = renderAvatarHtml(p);
+                let removeHtml = (isHost && p !== window.myCurrentName) ? `<span class="remove-btn" onclick="removePlayer('${p}')">✕</span>` : '';
+                badge.innerHTML = `${avatarHtml} <span>${p}</span> ${removeHtml}`;
+                listContainer.appendChild(badge);
+            });
+
+            setupLobbyCanvas();
+            renderArchives();
+
+        } else if(state.phase === "play" || state.phase === "result") {
+            document.getElementById("game-screen").classList.remove("hidden");
+            
+            const currentTurnPlayer = state.players[state.currentTurnIndex] || "-";
+            document.getElementById("current-turn-player").innerText = currentTurnPlayer;
+
+            let scoreHtml = "";
+            for(let [p, sc] of Object.entries(state.scores || {})) {
+                scoreHtml += `${renderAvatarHtml(p)} <strong>${p}</strong>: <span style="color:#bc6c25; font-size:18px;">${sc}pt</span> &nbsp;&nbsp;`;
+            }
+            document.getElementById("score-display").innerHTML = scoreHtml;
+
+            renderFieldCards();
+        }
+    }
+
+    function renderFieldCards() {
+        const container = document.getElementById("field-container");
+        container.innerHTML = "";
+
+        state.fieldCards.forEach((card, idx) => {
+            const cardDiv = document.createElement("div");
+            cardDiv.className = "memory-card";
+            if(card.isMatched) cardDiv.classList.add("matched");
+
+            let backSideHtml = "";
+            if(!card.isFlipped && !card.isMatched) {
+                backSideHtml = `
+                    <div class="card-back-side" onclick="flipCard(${idx})">
+                        <div class="card-back-overlay"></div>
+                        <div class="card-back-content">
+                            <canvas class="draw-canvas" id="canvas-${idx}" style="pointer-events:auto;"></canvas>
+                        </div>
+                    </div>
+                `;
+            }
+
+            let matchBadgeHtml = "";
+            if(card.isMatched) {
+                matchBadgeHtml = `<div class="matched-badge">✨ 揃った！ (${card.matchOwner})</div>`;
+            }
+
+            cardDiv.innerHTML = `
+                <div style="font-size:12px; color:#7f8c8d; margin-bottom:4px;">カード #${idx+1} (${card.points}pt)</div>
+                <div style="font-size:16px; margin-bottom: 6px; height:44px; overflow:hidden; display:flex; align-items:center; justify-content:center;"><strong>${card.word}</strong></div>
+                
+                <div class="canvas-container">
+                    <img src="${card.imgUrl}" alt="Card Image">
+                    ${(card.isFlipped || card.isMatched) ? `<canvas class="draw-canvas" id="canvas-${idx}" style="pointer-events:auto;"></canvas>` : ''}
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+                    <small style="color:#888;">提示: ${card.playerName}</small>
+                    ${(card.isFlipped || card.isMatched) ? `<button class="clear-canvas-btn" onclick="clearCardCanvas(${idx})">🧹 クリア</button>` : ''}
+                </div>
+
+                ${matchBadgeHtml}
+                ${backSideHtml}
+            `;
+            container.appendChild(cardDiv);
+
+            setupCardCanvas(`canvas-${idx}`, idx, card.canvasData);
+        });
+    }
+
+    function setupLobbyCanvas() {
+        const canvas = document.getElementById('lobby-draw-canvas');
+        if(!canvas) return;
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+
+        if(state.lobbyCanvasData) {
+            const img = new Image();
+            img.onload = () => { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0); };
+            img.src = state.lobbyCanvasData;
+        }
+
+        let isDrawing = false;
+        canvas.onpointerdown = (e) => { isDrawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); };
+        canvas.onpointermove = (e) => {
+            if(!isDrawing) return;
+            e.preventDefault();
+            if(currentToolMode === 'eraser') {
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = currentBrushSize * 2;
+                ctx.globalCompositeOperation = 'destination-out';
+            } else {
+                ctx.strokeStyle = currentDrawingColor;
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.lineWidth = currentBrushSize;
+            }
+            ctx.lineCap = 'round';
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+        };
+        const stop = () => { if(!isDrawing) return; isDrawing = false; state.lobbyCanvasData = canvas.toDataURL(); syncAndPush(); };
+        canvas.onpointerup = stop; canvas.onpointerleave = stop;
+    }
+
+    function clearLobbyCanvas() {
+        state.lobbyCanvasData = "";
+        syncAndPush();
+        setupLobbyCanvas();
+    }
+
+    function setupCardCanvas(canvasId, cardIndex, savedDataUrl) {
+        const canvas = document.getElementById(canvasId);
+        if(!canvas) return;
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+
+        if(savedDataUrl) {
+            const img = new Image();
+            img.onload = () => { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0); };
+            img.src = savedDataUrl;
+        }
+
+        let isDrawing = false;
+        canvas.onpointerdown = (e) => {
+            isDrawing = true;
+            ctx.beginPath();
+            ctx.moveTo(e.offsetX, e.offsetY);
+            e.stopPropagation();
+        };
+        canvas.onpointermove = (e) => {
+            if(!isDrawing) return;
+            e.preventDefault();
+            if(currentToolMode === 'eraser') {
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = currentBrushSize * 2;
+                ctx.globalCompositeOperation = 'destination-out';
+            } else {
+                ctx.strokeStyle = currentDrawingColor;
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.lineWidth = currentBrushSize;
+            }
+            ctx.lineCap = 'round';
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+            e.stopPropagation();
+        };
+        const stop = (e) => {
+            if(!isDrawing) return;
+            isDrawing = false;
+            state.fieldCards[cardIndex].canvasData = canvas.toDataURL();
+            syncAndPush();
+            if(e) e.stopPropagation();
+        };
+        canvas.onpointerup = stop; 
+        canvas.onpointerleave = stop;
+    }
+
+    function clearCardCanvas(cardIndex) {
+        if(state.fieldCards[cardIndex]) {
+            state.fieldCards[cardIndex].canvasData = "";
+            syncAndPush();
+            renderFieldCards();
+        }
+    }
+
+    function renderArchives() {
+        const section = document.getElementById("archive-section");
+        const container = document.getElementById("archive-container");
+        container.innerHTML = "";
+
+        if(!state.archives || state.archives.length === 0) {
+            section.classList.add("hidden");
+            return;
+        }
+        section.classList.remove("hidden");
+
+        state.archives.forEach((archive, gIdx) => {
+            const gameDiv = document.createElement("div");
+            gameDiv.style.background = "#fefae0";
+            gameDiv.style.border = "1px solid #ccd5ae";
+            gameDiv.style.borderRadius = "10px";
+            gameDiv.style.padding = "12px";
+            gameDiv.style.marginBottom = "10px";
+
+            let cardsHtml = "";
+            archive.cards.forEach(card => {
+                cardsHtml += `
+                    <div style="background:#fff; border:1px solid #d4a373; border-radius:8px; padding:8px; width:140px; text-align:center;">
+                        <small style="color:#bc6c25;">${card.playerName}</small>
+                        <div style="font-size:13px; font-weight:bold; margin:4px 0;">${card.word}</div>
+                        <img src="${card.imgUrl}" style="width:100%; height:90px; object-fit:cover; border-radius:4px;">
+                    </div>
+                `;
+            });
+
+            gameDiv.innerHTML = `
+                <h4 style="color:#bc6c25; margin:0 0 8px 0;">美術館記録 #${state.archives.length - gIdx}</h4>
+                <div class="archive-field-container">${cardsHtml}</div>
+            `;
+            container.appendChild(gameDiv);
+        });
+    }
+</script>
+
+</body>
+</html>
